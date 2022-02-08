@@ -1,0 +1,40 @@
+import 'dart:async';
+
+import 'package:bloc/bloc.dart';
+import 'package:test_sejutacita/core/models/user/user_model.dart';
+import 'package:test_sejutacita/core/service/api.dart';
+import 'package:meta/meta.dart';
+
+part 'data_event.dart';
+part 'data_state.dart';
+
+class DataBloc extends Bloc<DataEvent, DataState> {
+  UserResults user;
+  int page = 0;
+  DataBloc() : super(DataUnintialized());
+
+  @override
+  Stream<DataState> mapEventToState(
+    DataEvent event,
+  ) async* {
+    if (event is FetchData) {
+      user = await Git.fetchUser(event.keywords, event.page ?? 1, 10);
+      yield DataLoaded(user: user, hasReachedMax: false);
+    }
+    if (event is MoreData) {
+      UserResults moreUser = await Git.fetchUser(event.keywords, page++, 10);
+      DataLoaded data = state as DataLoaded;
+      if (moreUser == null) {
+        page--;
+        data.copyWith(hasReachedMax: true);
+      } else {
+        user.items.addAll(moreUser.items);
+        yield DataLoaded(user: user, hasReachedMax: false);
+      }
+    }
+    if (event is ClearData) {
+      user.items.clear();
+      yield DataClear(message: 't');
+    }
+  }
+}
